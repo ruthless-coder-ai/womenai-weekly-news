@@ -1,0 +1,62 @@
+/* WoMen AI Lab — 每周 AI 要闻卡片视觉系统
+   画布 1080x1440（小红书 3:4），导出 2x（2160x2880）。改色/改间距集中在这里。
+   母版锁死：字体栈、配色、页眉页脚不要改，每期只换字。 */
+:root{
+  --bg:#1D1D1F;
+  --mint:#5CC8A4;
+  --beige:#F4EFE9;
+  --beige-dim:#BFB8AC;
+  --line:#2e2e30;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:#2a2a2a;
+  display:flex;flex-direction:column;align-items:center;gap:40px;padding:40px 0;
+  font-family:'Helvetica Neue','Liberation Sans','PingFang SC','Noto Sans CJK SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+}
+.card{
+  position:relative;width:1080px;height:1440px;background:var(--bg);
+  padding:64px 56px;overflow:hidden;display:flex;flex-direction:column;
+}
+.top-bar{position:absolute;top:0;left:0;right:0;height:6px;background:var(--mint);}
+.header{display:flex;justify-content:space-between;align-items:baseline;position:relative;z-index:2;}
+.brand{font-size:31px;font-weight:700;color:#fff;letter-spacing:0.5px;}
+.brand .ai{color:var(--mint);}
+.header-right{font-size:25px;color:var(--beige-dim);font-weight:500;}
+.header-right .date{color:var(--mint);font-weight:700;}
+.divider{height:1px;background:var(--line);margin-top:24px;position:relative;z-index:2;}
+.footer{margin-top:auto;display:flex;justify-content:space-between;align-items:center;position:relative;z-index:2;}
+.footer-left{display:flex;align-items:center;gap:12px;font-size:25px;color:var(--beige-dim);}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--mint);display:inline-block;}
+.footer-right{font-size:25px;color:var(--beige-dim);letter-spacing:1px;}
+.wm{position:absolute;right:-26px;bottom:-120px;font-size:400px;font-weight:800;color:var(--mint);opacity:0.06;line-height:1;z-index:1;pointer-events:none;}
+.body{flex:1;display:flex;flex-direction:column;position:relative;z-index:2;}
+.tag{color:var(--mint);font-size:28px;letter-spacing:5px;font-weight:600;}
+/* cover */
+.cover-body{justify-content:center;}
+.cover-vol{font-size:30px;color:var(--beige-dim);letter-spacing:3px;margin-top:30px;}
+.cover-vol .g{color:var(--mint);font-weight:700;}
+.cover-title{font-size:104px;font-weight:800;line-height:1.16;color:#fff;margin-top:22px;}
+.cover-title .g{color:var(--mint);}
+.headlines{margin-top:56px;}
+.hl-item{display:flex;gap:26px;align-items:baseline;margin-bottom:34px;}
+.hl-num{font-size:34px;font-weight:800;color:var(--mint);letter-spacing:1px;flex-shrink:0;}
+.hl-text{font-size:40px;line-height:1.42;color:var(--beige);font-weight:500;}
+.hl-text .g{color:var(--mint);}
+.swipe{margin-top:40px;font-size:30px;color:var(--mint);letter-spacing:2px;}
+/* news card */
+.kicker{margin-top:28px;display:flex;align-items:baseline;gap:22px;}
+.kicker .k-num{font-size:30px;font-weight:800;color:var(--mint);letter-spacing:1px;}
+.kicker .k-label{font-size:26px;letter-spacing:4px;color:var(--beige-dim);font-weight:600;}
+.news-title{font-size:56px;font-weight:700;line-height:1.28;color:#fff;margin-top:26px;}
+.news-title .g{color:var(--mint);}
+.news-body{font-size:40px;line-height:1.6;color:var(--beige);margin-top:32px;font-weight:400;}
+.news-body .g{color:var(--mint);}
+.news-body-2{font-size:38px;line-height:1.56;color:var(--beige-dim);margin-top:22px;font-weight:400;}
+.news-body-2 .g{color:var(--mint);}
+.short-line{width:64px;height:5px;background:var(--mint);margin-top:38px;border-radius:2px;}
+.why-title{font-size:23px;letter-spacing:3px;font-weight:700;color:#fff;margin-top:24px;}
+.why-title .g{color:var(--mint);}
+.why-body{font-size:40px;line-height:1.55;font-weight:700;color:#fff;margin-top:16px;}
+.why-body .g{color:var(--mint);}
+.source{font-size:24px;color:var(--beige-dim);margin-top:34px;letter-spacing:1px;}
