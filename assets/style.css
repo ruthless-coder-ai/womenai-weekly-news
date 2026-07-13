@@ -14,6 +14,8 @@ body{
   display:flex;flex-direction:column;align-items:center;gap:40px;padding:40px 0;
   font-family:'Helvetica Neue','Liberation Sans','PingFang SC','Noto Sans CJK SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
 }
+/* 薄荷绿高亮：唯一的强调方式，任何字段通用 */
+.g{color:var(--mint);}
 .card{
   position:relative;width:1080px;height:1440px;background:var(--bg);
   padding:64px 56px;overflow:hidden;display:flex;flex-direction:column;

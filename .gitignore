@@ -1,0 +1,16 @@
+# Privacy: never commit rendered issue cards or working HTML.
+vol*/
+out/
+_cards.html
+*.png
+
+# ...but keep the README preview images that ship with the repo.
+!docs/
+!docs/**
+
+# Python / OS cruft
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store

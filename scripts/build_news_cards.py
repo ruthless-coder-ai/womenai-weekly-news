@@ -160,10 +160,17 @@ def render_pngs(html, cards, out_dir):
                                 viewport={"width": 1160, "height": 1520})
         page.goto("file://" + html_path)
         page.wait_for_timeout(600)
+        # A card overflows when its content pushes the footer past the card's
+        # inner bottom edge. (Measuring .body/.card scrollHeight doesn't work:
+        # .body grows to fit its content, and the giant watermark pollutes the
+        # card's scrollHeight — so the footer position is the reliable signal.)
         overflow = page.evaluate(
             """() => Array.from(document.querySelectorAll('.card')).map(card => {
-                const b = card.querySelector('.body');
-                return b ? Math.max(0, b.scrollHeight - b.clientHeight) : 0;
+                const footer = card.querySelector('.footer');
+                if (!footer) return 0;
+                const padB = parseFloat(getComputedStyle(card).paddingBottom) || 0;
+                const innerBottom = card.getBoundingClientRect().bottom - padB;
+                return Math.max(0, Math.round(footer.getBoundingClientRect().bottom - innerBottom));
             })"""
         )
         els = page.query_selector_all(".card")
