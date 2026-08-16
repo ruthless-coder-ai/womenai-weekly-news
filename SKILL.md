@@ -36,9 +36,9 @@ description: >-
   print(mon.isoformat(), sun.isoformat(), f'{mon:%m.%d} — {sun:%m.%d}')"
   ```
 
-- **期号 Vol.**：上一期 +1。看输出根目录 `~/Claude working folder/womenai-weekly-news/`
+- **期号 Vol.**：上一期 +1。看输出根目录 `~/Claude working folder/WoMenAILab/womenai-weekly-news/`
   下已有的 `volNN-*` 文件夹取最大号 +1；一个都没有就问用户这期是 Vol 几。
-- 本期输出目录：`~/Claude working folder/womenai-weekly-news/volNN-MMDD-MMDD/`。
+- 本期输出目录：`~/Claude working folder/WoMenAILab/womenai-weekly-news/volNN-MMDD-MMDD/`。
 
 ### 2. 搜新闻
 
@@ -55,9 +55,14 @@ description: >-
 ### 3. 写文案
 
 按 `references/editorial-guide.md` 的「语言风格」写（最容易出错，务必读）：
-标题带大厂名/产品名；正文客观陈述、不人格化；只有「对 WoMen 为什么重要」
-用「我们」口吻；不用引号强调、不用破折号、不用「不是A而是B」；每张一处
-`<g>薄荷绿高亮</g>`。
+标题带大厂名/产品名；正文客观陈述、不人格化；不用引号强调、不用破折号、
+不用「不是A而是B」；每张一处 `<g>薄荷绿高亮</g>`。
+
+**`why` 段单独有一节「why 段怎么写」，写之前必读。** 这段是全篇最容易出爹味的
+地方：它的任务是补上下文，不是给指令。不用祈使句（把…、记得…、别…、现在就…），
+不用劝导词（应该、值得、不妨、建议），不拿「被淘汰/被顶掉」当动机；真有具体
+动作要说就说成事实（不写「把活挪到低谷时段能省一截」，写「低谷时段单价是白天
+一半」）。三张卡的收尾别用同一个模子，指南里给了 5 种可选类型。
 
 写进 `news.json`（schema 见下）。**只写内容**——页码、页眉、Vol/日期标签、
 「对 WoMen 为什么重要」小标题都由脚本自动加。
