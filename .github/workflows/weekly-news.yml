@@ -1,0 +1,227 @@
+name: Weekly AI news to Xiaohongshu
+
+on:
+  schedule:
+    - cron: "0 12 * * 0"
+      timezone: "Europe/Berlin"
+  workflow_dispatch:
+    inputs:
+      week_end:
+        description: "Target Sunday (YYYY-MM-DD); blank uses the latest complete week"
+        required: false
+        type: string
+      force_regenerate:
+        description: "Replace copy and cards even if this week already exists"
+        required: false
+        default: false
+        type: boolean
+      skip_publish:
+        description: "Generate and push cards without publishing to Xiaohongshu"
+        required: false
+        default: false
+        type: boolean
+      force_publish:
+        description: "Retry despite an existing publish lock (may duplicate a post)"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: weekly-ai-news-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TZ: Europe/Berlin
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-6-astra' }}
+      XHS_COOKIES_B64: ${{ secrets.XHS_COOKIES_B64 }}
+
+    steps:
+      - name: Check out generator
+        uses: actions/checkout@v4
+
+      - name: Check out private cards archive
+        uses: actions/checkout@v4
+        with:
+          repository: ruthless-coder-ai/womenai-weekly-news-cards
+          token: ${{ secrets.CARDS_REPO_TOKEN }}
+          path: cards-output
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-cloud.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install rendering dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-cloud.txt
+          python -m playwright install --with-deps chromium
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk
+
+      - name: Choose week and issue number
+        id: issue
+        env:
+          REQUESTED_WEEK_END: ${{ inputs.week_end }}
+        run: |
+          args=(--cards-dir "$GITHUB_WORKSPACE/cards-output")
+          if [[ -n "$REQUESTED_WEEK_END" ]]; then
+            args+=(--week-end "$REQUESTED_WEEK_END")
+          fi
+          python scripts/prepare_weekly_issue.py "${args[@]}"
+
+      - name: Check generation credentials
+        if: ${{ steps.issue.outputs.existing != 'true' || inputs.force_regenerate == true }}
+        run: |
+          if [[ -z "$OPENAI_API_KEY" ]]; then
+            echo "OPENAI_API_KEY is required to research and write a new issue" >&2
+            exit 1
+          fi
+
+      - name: Research and write the issue
+        if: ${{ steps.issue.outputs.existing != 'true' || inputs.force_regenerate == true }}
+        run: |
+          python scripts/generate_weekly_issue.py \
+            --output-dir "${{ steps.issue.outputs.issue_dir }}" \
+            --vol "${{ steps.issue.outputs.vol }}" \
+            --week-start "${{ steps.issue.outputs.week_start }}" \
+            --week-end "${{ steps.issue.outputs.week_end }}" \
+            --editorial-guide references/editorial-guide.md \
+            --model "$OPENAI_MODEL"
+
+      - name: Render four cards
+        run: |
+          issue_dir="${{ steps.issue.outputs.issue_dir }}"
+          if [[ ! -f "$issue_dir/news.json" ]]; then
+            echo "Missing $issue_dir/news.json" >&2
+            exit 1
+          fi
+          png_count="$(find "$issue_dir" -maxdepth 1 -name '*.png' -type f | wc -l | tr -d ' ')"
+          if [[ "${{ inputs.force_regenerate }}" == "true" || "$png_count" != "4" ]]; then
+            python scripts/build_news_cards.py "$issue_dir/news.json" --out "$issue_dir" --fail-on-overflow
+          fi
+          python scripts/validate_rendered_issue.py "$issue_dir"
+
+      - name: Push cards archive
+        working-directory: cards-output
+        run: |
+          git config user.name "WoMen AI Lab Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A "${{ steps.issue.outputs.issue_rel }}"
+          if git diff --cached --quiet; then
+            echo "Cards archive is already up to date"
+          else
+            git commit -m "Vol.${{ steps.issue.outputs.vol }} cards (${{ steps.issue.outputs.commit_date_range }})"
+            git push origin HEAD:main
+          fi
+
+      - name: Upload cards as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vol-${{ steps.issue.outputs.vol_padded }}-cards
+          path: |
+            ${{ steps.issue.outputs.issue_dir }}/*.png
+            ${{ steps.issue.outputs.issue_dir }}/news.json
+            ${{ steps.issue.outputs.issue_dir }}/xhs-post.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Decide whether to publish
+        id: publish
+        env:
+          SKIP_PUBLISH: ${{ inputs.skip_publish }}
+          FORCE_PUBLISH: ${{ inputs.force_publish }}
+        run: |
+          issue_dir="${{ steps.issue.outputs.issue_dir }}"
+          if [[ "$SKIP_PUBLISH" == "true" ]]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "reason=manual skip" >> "$GITHUB_OUTPUT"
+          elif [[ -f "$issue_dir/.xhs-published.json" ]]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "reason=already published" >> "$GITHUB_OUTPUT"
+          elif [[ -f "$issue_dir/.xhs-publish-lock.json" && "$FORCE_PUBLISH" != "true" ]]; then
+            echo "A previous publish attempt left a lock. Inspect that run before retrying." >&2
+            echo "Use workflow_dispatch with force_publish only after confirming no post exists." >&2
+            exit 1
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "reason=ready" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check Xiaohongshu credentials
+        if: ${{ steps.publish.outputs.run == 'true' }}
+        run: |
+          if [[ -z "$XHS_COOKIES_B64" ]]; then
+            echo "XHS_COOKIES_B64 is required for direct publishing" >&2
+            exit 1
+          fi
+
+      - name: Write and push duplicate-prevention lock
+        if: ${{ steps.publish.outputs.run == 'true' }}
+        working-directory: cards-output
+        env:
+          ISSUE_DIR: ${{ steps.issue.outputs.issue_dir }}
+          ISSUE_REL: ${{ steps.issue.outputs.issue_rel }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          marker = {
+              "started_at": datetime.now(timezone.utc).isoformat(),
+              "github_run": os.environ["RUN_URL"],
+              "purpose": "Prevent an automatic retry from creating a duplicate Xiaohongshu post",
+          }
+          Path(os.environ["ISSUE_DIR"], ".xhs-publish-lock.json").write_text(
+              json.dumps(marker, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+          git add "$ISSUE_REL/.xhs-publish-lock.json"
+          git commit -m "Vol.${{ steps.issue.outputs.vol }}: start Xiaohongshu publish"
+          git push origin HEAD:main
+
+      - name: Publish four images to Xiaohongshu
+        if: ${{ steps.publish.outputs.run == 'true' }}
+        run: |
+          python scripts/publish_xhs.py \
+            "${{ steps.issue.outputs.issue_dir }}" \
+            --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Record successful Xiaohongshu publish
+        if: ${{ steps.publish.outputs.run == 'true' }}
+        working-directory: cards-output
+        run: |
+          git add "${{ steps.issue.outputs.issue_rel }}/.xhs-published.json"
+          git commit -m "Vol.${{ steps.issue.outputs.vol }}: published to Xiaohongshu"
+          git push origin HEAD:main
+
+      - name: Write job summary
+        if: always()
+        run: |
+          {
+            echo "## WoMen AI Lab weekly news"
+            echo ""
+            echo "- Issue: Vol.${{ steps.issue.outputs.vol }}"
+            echo "- Week: ${{ steps.issue.outputs.date_range }}"
+            echo "- Folder: `${{ steps.issue.outputs.issue_rel }}`"
+            echo "- Xiaohongshu decision: ${{ steps.publish.outputs.reason }}"
+            echo "- Cards: https://github.com/ruthless-coder-ai/womenai-weekly-news-cards"
+          } >> "$GITHUB_STEP_SUMMARY"
+

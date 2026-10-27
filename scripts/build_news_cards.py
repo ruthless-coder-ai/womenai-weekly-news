@@ -192,6 +192,11 @@ def main():
     ap.add_argument("json", help="path to news.json")
     ap.add_argument("--out", help="output dir (default: output_dir from JSON, else ./out)")
     ap.add_argument("--html-only", action="store_true", help="write HTML, skip PNG render")
+    ap.add_argument(
+        "--fail-on-overflow",
+        action="store_true",
+        help="exit non-zero when rendered text crosses the safe footer boundary",
+    )
     args = ap.parse_args()
 
     with open(args.json, encoding="utf-8") as f:
@@ -217,6 +222,8 @@ def main():
         print("Overflow warnings:")
         for w in warnings:
             print(w)
+        if args.fail_on_overflow:
+            raise SystemExit("Rendered cards contain text overflow")
 
 
 if __name__ == "__main__":

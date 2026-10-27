@@ -28,6 +28,13 @@ git clone https://github.com/ruthless-coder-ai/womenai-weekly-news.git ~/.claude
 
 第一次运行会询问期号，之后从输出文件夹自动 +1。交付时会列出三条新闻的标题和信源，说「第 X 条换成 XX」即可重做。
 
+## 云端每周自动发布
+
+仓库内置 GitHub Actions 流程，可在每周日欧洲中部时间 12:00 自动完成检索、
+写稿、渲染、归档并发布小红书，运行时不依赖个人电脑。首次启用需要配置
+OpenAI、成品仓库和小红书登录三个 GitHub Secrets。完整说明见
+[`docs/CLOUD_AUTOMATION.md`](docs/CLOUD_AUTOMATION.md)。
+
 ## 设计原则
 
 - **母版锁死**：字体栈、配色（深炭黑 `#1D1D1F` + 薄荷绿 `#5CC8A4` + 米色 `#F4EFE9`）、页眉页脚、水印全部固化在 `assets/style.css` 和渲染脚本里，每期长得一样，只换字。

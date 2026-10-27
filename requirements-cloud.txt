@@ -1,0 +1,5 @@
+openai>=2.6,<3
+pydantic>=2.10,<3
+playwright>=1.52,<2
+Pillow>=11,<13
+
