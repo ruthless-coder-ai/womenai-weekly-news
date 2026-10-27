@@ -155,7 +155,8 @@ def render_pngs(html, cards, out_dir):
         f.write(html)
     saved, warnings = [], []
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        executable_path = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH")
+        browser = p.chromium.launch(executable_path=executable_path or None)
         page = browser.new_page(device_scale_factor=2,
                                 viewport={"width": 1160, "height": 1520})
         page.goto("file://" + html_path)

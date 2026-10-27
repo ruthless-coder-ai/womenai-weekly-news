@@ -30,10 +30,13 @@ git clone https://github.com/ruthless-coder-ai/womenai-weekly-news.git ~/.claude
 
 ## 云端每周自动发布
 
-仓库内置 GitHub Actions 流程，可在每周日欧洲中部时间 12:00 自动完成检索、
-写稿、渲染、归档并发布小红书，运行时不依赖个人电脑。首次启用需要配置
-OpenAI、成品仓库和小红书登录三个 GitHub Secrets。完整说明见
+ChatGPT Routine 可在每周日欧洲中部时间 12:00 自动完成检索和写稿，再创建
+结构化 GitHub Issue 触发仓库内置的 Actions 流程，完成渲染、归档和小红书发布，
+运行时不依赖个人电脑。首次启用需要连接两个 GitHub 仓库，并在源码仓库配置
+成品仓库写入和小红书登录两个 GitHub Secrets。完整说明见
 [`docs/CLOUD_AUTOMATION.md`](docs/CLOUD_AUTOMATION.md)。
+Routine 的完整提示词见
+[`docs/CHATGPT_ROUTINE_PROMPT.md`](docs/CHATGPT_ROUTINE_PROMPT.md)。
 
 ## 设计原则
 

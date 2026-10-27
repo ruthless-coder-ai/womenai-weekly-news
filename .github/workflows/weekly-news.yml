@@ -1,9 +1,8 @@
 name: Weekly AI news to Xiaohongshu
 
 on:
-  schedule:
-    - cron: "0 12 * * 0"
-      timezone: "Europe/Berlin"
+  issues:
+    types: [opened]
   workflow_dispatch:
     inputs:
       week_end:
@@ -32,9 +31,11 @@ concurrency:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   build-and-publish:
+    if: ${{ github.event_name != 'issues' || startsWith(github.event.issue.title, '[weekly-news]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -75,10 +76,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y fonts-noto-cjk
 
+      - name: Validate ChatGPT Routine request
+        if: ${{ github.event_name == 'issues' }}
+        id: routine
+        run: |
+          python scripts/ingest_routine_issue.py extract \
+            --event "$GITHUB_EVENT_PATH" \
+            --payload-out "$RUNNER_TEMP/routine-payload.json"
+
       - name: Choose week and issue number
         id: issue
         env:
-          REQUESTED_WEEK_END: ${{ inputs.week_end }}
+          REQUESTED_WEEK_END: ${{ github.event_name == 'issues' && steps.routine.outputs.week_end || inputs.week_end }}
         run: |
           args=(--cards-dir "$GITHUB_WORKSPACE/cards-output")
           if [[ -n "$REQUESTED_WEEK_END" ]]; then
@@ -87,7 +96,7 @@ jobs:
           python scripts/prepare_weekly_issue.py "${args[@]}"
 
       - name: Check generation credentials
-        if: ${{ steps.issue.outputs.existing != 'true' || inputs.force_regenerate == true }}
+        if: ${{ github.event_name != 'issues' && (steps.issue.outputs.existing != 'true' || inputs.force_regenerate == true) }}
         run: |
           if [[ -z "$OPENAI_API_KEY" ]]; then
             echo "OPENAI_API_KEY is required to research and write a new issue" >&2
@@ -95,7 +104,7 @@ jobs:
           fi
 
       - name: Research and write the issue
-        if: ${{ steps.issue.outputs.existing != 'true' || inputs.force_regenerate == true }}
+        if: ${{ github.event_name != 'issues' && (steps.issue.outputs.existing != 'true' || inputs.force_regenerate == true) }}
         run: |
           python scripts/generate_weekly_issue.py \
             --output-dir "${{ steps.issue.outputs.issue_dir }}" \
@@ -105,6 +114,16 @@ jobs:
             --editorial-guide references/editorial-guide.md \
             --model "$OPENAI_MODEL"
 
+      - name: Materialize ChatGPT Routine copy
+        if: ${{ github.event_name == 'issues' }}
+        run: |
+          python scripts/ingest_routine_issue.py materialize \
+            --payload "$RUNNER_TEMP/routine-payload.json" \
+            --output-dir "${{ steps.issue.outputs.issue_dir }}" \
+            --vol "${{ steps.issue.outputs.vol }}" \
+            --week-start "${{ steps.issue.outputs.week_start }}" \
+            --week-end "${{ steps.issue.outputs.week_end }}"
+
       - name: Render four cards
         run: |
           issue_dir="${{ steps.issue.outputs.issue_dir }}"
@@ -113,7 +132,7 @@ jobs:
             exit 1
           fi
           png_count="$(find "$issue_dir" -maxdepth 1 -name '*.png' -type f | wc -l | tr -d ' ')"
-          if [[ "${{ inputs.force_regenerate }}" == "true" || "$png_count" != "4" ]]; then
+          if [[ "${{ github.event_name }}" == "issues" || "${{ inputs.force_regenerate }}" == "true" || "$png_count" != "4" ]]; then
             python scripts/build_news_cards.py "$issue_dir/news.json" --out "$issue_dir" --fail-on-overflow
           fi
           python scripts/validate_rendered_issue.py "$issue_dir"
@@ -147,9 +166,13 @@ jobs:
         env:
           SKIP_PUBLISH: ${{ inputs.skip_publish }}
           FORCE_PUBLISH: ${{ inputs.force_publish }}
+          ROUTINE_PUBLISH: ${{ steps.routine.outputs.publish }}
         run: |
           issue_dir="${{ steps.issue.outputs.issue_dir }}"
-          if [[ "$SKIP_PUBLISH" == "true" ]]; then
+          if [[ "${{ github.event_name }}" == "issues" && "$ROUTINE_PUBLISH" != "true" ]]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "reason=Routine dry run" >> "$GITHUB_OUTPUT"
+          elif [[ "$SKIP_PUBLISH" == "true" ]]; then
             echo "run=false" >> "$GITHUB_OUTPUT"
             echo "reason=manual skip" >> "$GITHUB_OUTPUT"
           elif [[ -f "$issue_dir/.xhs-published.json" ]]; then
@@ -224,4 +247,21 @@ jobs:
             echo "- Xiaohongshu decision: ${{ steps.publish.outputs.reason }}"
             echo "- Cards: https://github.com/ruthless-coder-ai/womenai-weekly-news-cards"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report Routine result on the trigger issue
+        if: ${{ always() && github.event_name == 'issues' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          if [[ "$JOB_STATUS" == "success" ]]; then
+            body="✅ 云端试运行完成：Vol.${{ steps.issue.outputs.vol }}，4 张卡片已渲染并推送。小红书状态：${{ steps.publish.outputs.reason }}。"
+            gh issue comment "$ISSUE_NUMBER" --body "$body"
+            gh issue close "$ISSUE_NUMBER" --reason completed
+          else
+            body="❌ 云端运行失败。请查看本次 Actions 日志：https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            gh issue comment "$ISSUE_NUMBER" --body "$body"
+          fi
 
