@@ -60,8 +60,7 @@ def main() -> None:
         raise SystemExit(f"Expected 4 PNGs before publish, found {len(images)}")
 
     package = f"xhs-mcp@{XHS_MCP_VERSION}"
-    run_json(["npx", "--yes", package, "browser"])
-    status = run_json(["npx", "--yes", package, "status"])
+    # The xhs-mcp browser probe omits the no-sandbox launch flags used by its\n    # real operations, so it reports a false failure on GitHub-hosted runners.\n    status = run_json(["npx", "--yes", package, "status"])
     status_data = status.get("data", status)
     if not status_data.get("isLoggedIn"):
         raise SystemExit("Xiaohongshu cookies are expired or not logged in")
