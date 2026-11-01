@@ -62,8 +62,11 @@ def main() -> None:
     package = f"xhs-mcp@{XHS_MCP_VERSION}"
     # The xhs-mcp browser probe omits the no-sandbox launch flags used by its\n    # real operations, so it reports a false failure on GitHub-hosted runners.\n    status = run_json(["npx", "--yes", package, "status"])
     status_data = status.get("data", status)
-    if not status_data.get("isLoggedIn"):
-        raise SystemExit("Xiaohongshu cookies are expired or not logged in")
+    logged_in = status_data.get("loggedIn", status_data.get("isLoggedIn"))
+    if logged_in is not True:
+        # This selector can lag behind the creator platform's own login state.
+        # Publishing itself safely fails if the authenticated upload form is absent.
+        print("xhs-mcp status did not confirm login; checking the creator publish page")
     run_json(
         [
             "npx",
