@@ -43,6 +43,7 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-6-astra' }}
       XHS_COOKIES_B64: ${{ secrets.XHS_COOKIES_B64 }}
+      XHS_HEADLESS: "true"
 
     steps:
       - name: Check out generator
@@ -74,7 +75,7 @@ jobs:
           python -m pip install -r requirements-cloud.txt
           python -m playwright install --with-deps chromium
           sudo apt-get update
-          sudo apt-get install -y fonts-noto-cjk
+          sudo apt-get install -y fonts-noto-cjk xvfb
 
       - name: Validate ChatGPT Routine request
         if: ${{ github.event_name == 'issues' }}
@@ -223,7 +224,7 @@ jobs:
       - name: Publish four images to Xiaohongshu
         if: ${{ steps.publish.outputs.run == 'true' }}
         run: |
-          python scripts/publish_xhs.py \
+          xvfb-run -a python scripts/publish_xhs.py \
             "${{ steps.issue.outputs.issue_dir }}" \
             --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
@@ -243,7 +244,7 @@ jobs:
             echo ""
             echo "- Issue: Vol.${{ steps.issue.outputs.vol }}"
             echo "- Week: ${{ steps.issue.outputs.date_range }}"
-            echo "- Folder: `${{ steps.issue.outputs.issue_rel }}`"
+            echo "- Folder: ${{ steps.issue.outputs.issue_rel }}"
             echo "- Xiaohongshu decision: ${{ steps.publish.outputs.reason }}"
             echo "- Cards: https://github.com/ruthless-coder-ai/womenai-weekly-news-cards"
           } >> "$GITHUB_STEP_SUMMARY"
