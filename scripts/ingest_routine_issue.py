@@ -11,7 +11,12 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from generate_weekly_issue import GeneratedIssue, validate_issue, write_outputs
+from generate_weekly_issue import (
+    GeneratedIssue,
+    previous_issue_companies,
+    validate_issue,
+    write_outputs,
+)
 
 
 START_MARKER = "<!-- WOMENAI_ROUTINE_PAYLOAD_START -->"
@@ -41,11 +46,19 @@ def parse_payload(path: Path) -> RoutineEnvelope:
     return RoutineEnvelope.model_validate_json(path.read_text(encoding="utf-8"))
 
 
-def validate_envelope(envelope: RoutineEnvelope) -> tuple[date, date]:
+def validate_envelope(
+    envelope: RoutineEnvelope,
+    previous_companies: set[str] | None = None,
+) -> tuple[date, date]:
     if envelope.week_end.weekday() != 6:
         raise ValueError("week_end must be a Sunday")
     week_start = envelope.week_end - timedelta(days=6)
-    validate_issue(envelope.issue, week_start, envelope.week_end)
+    validate_issue(
+        envelope.issue,
+        week_start,
+        envelope.week_end,
+        previous_companies or set(),
+    )
     return week_start, envelope.week_end
 
 
@@ -74,14 +87,16 @@ def extract(args: argparse.Namespace) -> None:
 
 def materialize(args: argparse.Namespace) -> None:
     envelope = parse_payload(Path(args.payload))
-    week_start, week_end = validate_envelope(envelope)
+    output_dir = Path(args.output_dir).resolve()
+    previous_companies = previous_issue_companies(output_dir, args.vol)
+    week_start, week_end = validate_envelope(envelope, previous_companies)
     expected_start = date.fromisoformat(args.week_start)
     expected_end = date.fromisoformat(args.week_end)
     if (week_start, week_end) != (expected_start, expected_end):
         raise ValueError("Routine payload week does not match the prepared issue folder")
     write_outputs(
         envelope.issue,
-        Path(args.output_dir).resolve(),
+        output_dir,
         args.vol,
         week_start,
         week_end,
@@ -113,4 +128,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
