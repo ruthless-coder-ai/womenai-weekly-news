@@ -18,9 +18,13 @@ schema, or editorial policy.
 Select exactly three consequential AI stories whose publication dates fall inside
 the target week. Cover money/cost/access, people/work/society, and tool/model exactly
 once. Use three different lead companies or institutions and include at least one
-international story. Do not select funding, valuations, executive changes, court
-rulings, government regulations, or policy documents. Verify each date and include
-a direct public source URL.
+international story. Before choosing, read the most recent previous issue's
+`news.json` from ruthless-coder-ai/womenai-weekly-news-cards and compare both
+`research_sources[].company` and the card titles. Do not reuse any lead company,
+its product brands, or a substantially identical topic from that immediately previous
+issue; a different product name from the same company still counts as a duplicate.
+Do not select funding, valuations, executive changes, court rulings, government
+regulations, or policy documents. Verify each date and include a direct public source URL.
 
 Write all reader-facing copy in Chinese in the WoMen AI Lab voice. Validate every
 constraint in the repository's editorial guide, including the <g> highlights,
